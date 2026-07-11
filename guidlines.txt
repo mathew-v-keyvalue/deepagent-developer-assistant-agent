@@ -1,0 +1,282 @@
+AI Agent Toolkit Bake-off — Daily Assistant Agent Requirements
+
+
+What we're doing
+Before we commit to one agent toolkit for the AI-native floor, we want to try them out properly. So we're running a hands-on bake-off. We build the same agent, a daily assistant for software developers, in each of the SDKs we're considering (Claude Agent SDK, OpenAI Agents SDK, Agno, Mastra, DeepAgents, and Hermes). We put each version through three different kinds of tasks, score them all the same way, and use that to make a clear recommendation. We run the whole thing as a team workshop, so the people building the agents learn the tools by actually using them.
+Why we're doing it (and why now)
+This is a big decision that's hard to undo. The toolkit we pick sits underneath all our main agentic products, so if we choose wrong, we end up rebuilding a lot of it later. Two weeks of testing now saves us from that.
+Testing just once can fool you. A toolkit can be great at fixed workflows but poor at open-ended thinking, or the other way around. We run three different kinds of tasks so we're not judging by one lucky result.
+The team learns by doing this. Everyone who builds comes away understanding the strengths and weaknesses across all the tools, not just one. That knowledge is as valuable as the decision.
+What "done" looks like (the three outcomes)
+A clear recommendation: which toolkit for which kind of project (not one blanket winner).
+A trained team — every builder has shipped the same agent in at least one toolkit and can speak to the tradeoffs.
+Reusable test data — a production-grade mock dataset across all five developer tools (Jira, Slack, Gmail, Calendar, GitHub) that we can use for future agent testing.
+
+What we're building
+A daily assistant agent for software developers that helps them stay on top of their work across five critical tools: Jira, Slack, Gmail, Calendar, and GitHub. The agent pulls data from these sources, understands context across them (e.g., linking a Jira ticket to its GitHub PR and related Slack discussion), and helps with daily workflows like standup preparation, status updates, priority triage, and meeting prep. It holds multi-turn conversations, grounds every answer in real data from the connected tools (no making things up), asks for human approval before taking irreversible actions (like posting public messages or closing tickets), and escalates when it's uncertain or lacks permissions.
+This is representative of the personal assistant agents we're building for developer productivity, and it stresses real-world challenges: data integration across multiple APIs, context synthesis, temporal reasoning (understanding deadlines, meetings, recent vs. stale), and intelligent summarization.
+The three task modes — the core of the test
+The same agent is driven against three kinds of tasks. These map to the three project types we care about, and they're just three ways a developer might interact with their assistant in real life.
+Mode
+The task
+What it stresses
+Example request
+How we score it
+1. Fixed steps
+Prepare a daily standup summary — a known, ordered procedure pulling data from all five sources in sequence
+Deterministic workflow control, multi-source data integration, structured output, human-in-the-loop verification
+"Generate my standup update for today's 10 AM meeting"
+Did it follow the exact procedure, in order, without skipping any source? Did it request human approval before posting to Slack? Pass/fail against the defined steps.
+2. Known scope
+Answer a specific question needing 1–3 API lookups across sources
+Grounded tool-calling, correct retrieval, cross-source linking, no hallucination
+"What's the status of PROJ-1234?" / "Do I have any meetings this afternoon?" / "Show me PRs waiting for my review"
+Is the answer correct and fully grounded in tool results? Checked against the golden answer from the mock data.
+3. Open-ended
+Handle a vague, multi-step request with no single right answer
+Planning, multi-turn clarification, memory, multi-source reasoning, judgment, escalation
+"I'm overcommitted this week, help me prioritize" / "Prep me for the 2 PM sprint planning meeting" / "What needs my attention today?"
+Did it reach a valid, actionable resolution? Scored on a qualitative rubric plus data grounding compliance.
+
+
+Each mode is run ~5 times per toolkit to capture variance — a single run tells us nothing about reliability.
+Scope
+In scope
+One daily assistant agent, built once per toolkit, against a shared mock dataset.
+A fixed tool set (§8.1) held identical across all toolkits, connecting to mock APIs for Jira, Slack, Gmail, Calendar, and GitHub.
+The three task modes above, with a golden answer/outcome set.
+Telemetry capture (tokens, cost, latency, API calls, attempts, pass/fail).
+Scoring against the fixed rubric (§11).
+A simple text/CLI or minimal chat interface — enough to drive the conversation.
+Production-grade mock data: realistic ticket structures, Slack threads with actual conversation patterns, Gmail threads, meeting schedules, PR review flows, commit histories.
+Out of scope (do not build)
+Real API connections to live Jira/Slack/Gmail/Calendar/GitHub accounts (mock APIs only).
+Real user data or PII of any kind — mock data only, using fictitious developer names, project names, etc.
+Production deployment, OAuth flows, rate limiting, or a polished UI.
+Voice interface (text only for this POC).
+Integrating with actual IDEs or code editors.
+Training or fine-tuning models — we hold the model constant and only compare frameworks.
+CI/CD integration.
+How we run it — methodology & fairness rules
+The whole point is that differences we observe are caused by the SDK, not by anything else. So everything except the SDK is held constant:
+One model, one temperature, one tool set, one dataset, one set of tasks — identical across all six. All candidates are model-agnostic, so this is achievable. Do the scored runs on one agreed mid-tier model; do one extra run on a premium model to check the ceiling.
+A shared test harness, built once. Every implementation plugs into the same runner and exposes the same interface (§13). This is what makes the comparison fair and the timeline feasible.
+A reference implementation first. Builds the agent in one toolkit (Claude Agent SDK) as the gold-standard template. Every other build mirrors its behaviour so we're comparing like with like.
+Same rubric, scored together. The team scores as a group in a calibration session to surface disagreements, rather than each person scoring in isolation.
+Functional requirements
+Tools the agent must expose (fixed set — identical across all toolkits)
+Each tool connects to a mock API endpoint that returns realistic, controlled data.
+Tool
+Type
+Purpose
+get_jira_tickets(filters)
+read
+Get Jira tickets (by assignee, status, sprint, project, labels, updated_since)
+get_jira_ticket_detail(ticket_id)
+read
+Full detail for one Jira ticket (description, comments, status history, linked items)
+update_jira_ticket(ticket_id, fields)
+write — gated
+Update ticket fields (status, assignee, story points). Requires approval.
+get_github_prs(filters)
+read
+Get GitHub PRs (by author, reviewer, status, repo, updated_since)
+get_github_pr_detail(pr_id)
+read
+Full detail for one PR (diff stats, review comments, CI status, linked issues)
+get_github_commits(repo, author, since)
+read
+Get recent commits by author in a repo
+get_slack_messages(channel, user, since)
+read
+Get recent Slack messages (by channel, mentions, DMs, date range)
+search_slack(query, filters)
+read
+Search Slack messages/threads (keyword, user, channel, date range)
+post_slack_message(channel, message)
+write — gated
+Post a message to Slack. Requires human approval before executing.
+get_calendar_events(start_date, end_date, filters)
+read
+Get calendar events (meetings, focus blocks, all-day events)
+get_gmail_threads(filters)
+read
+Get Gmail threads (by sender, subject, label, unread, date range)
+get_gmail_thread_detail(thread_id)
+read
+Full detail for one email thread (all messages, attachments, participants)
+send_email(to, subject, body)
+write — gated
+Send an email. Requires human approval before executing.
+link_jira_to_github(ticket_id, pr_url)
+read
+Find the linked GitHub PR for a Jira ticket (via commit messages, branch names)
+get_user_profile()
+read
+Get the developer's profile (name, team, role, working hours, timezone)
+escalate_to_user(reason)
+action
+Notify user that manual intervention is needed
+
+
+Mode 1 — Daily Standup Preparation (fixed steps)
+The agent must follow this exact, ordered procedure:
+Get user profile → Call get_user_profile() to know who this is for and timezone
+Get today's calendar → Call get_calendar_events(today, today) to find standup meeting time and other meetings
+Get assigned Jira tickets → Call get_jira_tickets(assignee=user, status=['In Progress', 'In Review'])
+For each ticket, get linked PRs → Call link_jira_to_github(ticket_id) to find related PRs
+Get GitHub PR status → For each PR found, call get_github_pr_detail(pr_id) to check review status
+Get relevant Slack mentions → Call get_slack_messages(user=user, since=yesterday) to find blockers/updates
+Get recent Gmail about work → Call get_gmail_threads(since=yesterday, label='work') for important communications
+Synthesize standup summary → Generate structured output:
+Yesterday: What was completed (closed tickets, merged PRs)
+Today: What's planned (in-progress tickets, meetings)
+Blockers: Any issues mentioned in Slack, PR review delays, calendar conflicts
+Request human approval → Show the summary and ask: "Post this to #standup channel on Slack?"
+If approved, post to Slack → Call post_slack_message(channel='standup', message=summary)
+Confirm to user → "Your standup update has been posted to #standup."
+The agent must not:
+Reorder these steps
+Skip any data source (all 5 must be checked)
+Post to Slack without explicit human approval
+Make up ticket statuses, PR reviews, or meeting times
+Mode 2 — Focused queries (known scope)
+Answer a specific question using 1–3 tool calls. The answer must be correct and fully grounded in tool results — no invented ticket numbers, PR links, meeting times, or Slack messages. If the data isn't available, say so.
+Examples:
+"What's the status of PROJ-1234?"
+"Do I have any meetings between 2-5 PM today?"
+"Show me PRs waiting for my review"
+"What did Sarah mention me about in Slack yesterday?"
+"Any unread emails from the product team?"
+Mode 3 — Open-ended planning (multi-source reasoning)
+Handle a vague request: clarify if needed, form a plan, gather data across multiple sources, reason about priorities/conflicts, and present actionable recommendations (with 2–3 options where relevant). Escalate if the request needs information the agent doesn't have access to.
+Examples:
+"I'm overcommitted this week, help me prioritize"
+Expected: Check calendar for meetings, Jira for ticket deadlines, GitHub for PRs needing attention, Slack for urgent mentions, propose a prioritized list with reasoning
+"Prep me for the 2 PM sprint planning meeting"
+Expected: Find meeting in calendar, get sprint tickets from Jira, check GitHub PR status for in-sprint work, summarize blockers from Slack, pull any emails about sprint goals
+"What needs my attention today?"
+Expected: Triage across all 5 sources, identify urgent items (blocked PRs, overdue tickets, unread important emails, meeting prep), present ranked list
+Guardrails & human-in-the-loop (mandatory for every build)
+No fabrication. Every factual claim about tickets, PRs, messages, meetings, or emails must trace to a tool result. No inventing ticket IDs, PR numbers, Slack usernames, or meeting times.
+No public action without human approval. Posting to Slack, sending emails, updating Jira tickets, or any write action that's visible to others must be drafted and held for a human "yes" — never auto-executed.
+Escalate when uncertain or lacking data. If the agent can't find information (e.g., no linked PR for a ticket, no Slack history available), it should acknowledge the gap and offer to escalate or suggest manual lookup.
+A read-only reviewer sub-agent checks the drafted reply for:
+Data grounding (all claims traced to tool outputs)
+No cross-source hallucination (e.g., claiming a Jira ticket is linked to a PR when tool returned no link)
+Proper handling of temporal data (today vs. yesterday, meeting times in correct timezone)
+Compliance with approval gates (write actions are flagged for approval)
+Capabilities each build must demonstrate
+Tool calling across 5 distinct APIs (Jira, GitHub, Slack, Gmail, Calendar)
+Multi-turn conversation with memory (follow-up questions, context retention)
+Cross-source data linking (Jira ticket → GitHub PR → Slack discussion)
+Temporal reasoning (understanding "today", "yesterday", "this week", deadlines, meeting times)
+A reviewer sub-agent for validation
+Human-in-the-loop approval on all write actions
+Escalation/handoff when data is missing or request is out of scope
+Streaming output (show progress as data is gathered from each source)
+Evaluation — scoring rubric
+Each toolkit is scored on every dimension, per task mode where relevant. "Which toolkit for which project type" falls out of the per-mode scores.
+Dimension
+What we're judging
+Build effort & DX
+Time-to-first-working-agent, lines of code, friction in wiring 5 APIs, docs quality for multi-source integration.
+Primitive fit
+How natively it supports multi-tool orchestration, subagents, memory, cross-source context, guardrails, human-in-the-loop, streaming.
+Determinism & control
+Can we force a fixed 10-step procedure (Mode 1) without the model improvising or reordering?
+Observability & eval
+What tracing/eval we get out of the box. Can we see the call chain across 5 sources? Token counting, latency per API, cache hits.
+Cost / tokens (measured)
+Tokens, $, and latency per task run — actual numbers across multi-source calls, not estimates.
+Model portability / lock-in
+How hard is it to swap models or providers? Does it handle context length well (5 sources = lots of data)?
+OSS / self-host & data-residency fit
+Self-host story, India-residency and client-data-segregation fit — a first-class criterion for us, not a footnote.
+Production-readiness
+Retries (API failures), durability, error handling when one source is down, rate limiting, deployment path.
+Language / runtime fit
+Fit with our stack (Python vs TS).
+Reliability across runs
+Variance across the ~5 repeated runs per task. Does it handle API latency variability?
+
+
+Deliverables
+Comparison matrix + analysis — every toolkit scored on every dimension, per task mode.
+The recommendation — which toolkit for which kind of project (multi-source integration vs. single-source vs. open-ended reasoning), with reasoning.
+Production-grade mock dataset — realistic data across Jira, Slack, Gmail, Calendar, GitHub that other teams can reuse.
+Common interface every implementation must expose
+So all six plug into the same runner:
+A single entry point that takes:
+A conversation (list of messages)
+Task config (mode, user_id, date/time context)
+Returns: the agent's reply + structured trace showing all API calls in order
+The fixed tool set from §8.1, wired to the shared mock APIs (provided as HTTP endpoints or local mocks).
+A hook or callback that pauses on write actions (post_slack_message, send_email, update_jira_ticket) for human approval.
+Example golden tasks (samples; full set built in Phase 0)
+Mode 1 examples:
+"Generate my standup update for today's 10 AM meeting"
+Expected: All 5 sources checked in order, structured summary (Yesterday/Today/Blockers), human approval requested before posting to Slack, confirmation message.
+Pass criteria: All 10 steps followed, no source skipped, no fabricated data, approval gate hit, Slack message content matches summary.
+Mode 2 examples:
+"What's the status of PROJ-1234?"
+Expected: Call get_jira_ticket_detail(PROJ-1234), return grounded status with last updated time, assignee, current sprint.
+"Do I have any meetings this afternoon?"
+Expected: Call get_calendar_events(today, today), filter for times after 12 PM, return list with meeting names, times, participants. If none, say "No meetings this afternoon."
+"Show me PRs waiting for my review"
+Expected: Call get_github_prs(reviewer=user, status=open), return list with PR title, author, repo, age. If none, say "No PRs waiting for your review."
+"What did the PM mention me about in Slack yesterday?"
+Expected: Call get_slack_messages(user=pm_username, since=yesterday) filtered for mentions of current user, return the message content and channel. If none, say "No mentions from [PM] yesterday."
+Mode 3 examples:
+"I'm overcommitted this week, help me prioritize"
+Expected: Calls get_calendar_events(this_week), get_jira_tickets(assignee=user), get_github_prs(author=user, status=open), get_slack_messages(mentions=user, since=this_week), synthesizes workload, identifies conflicts (double-booked meetings, overdue tickets, blocked PRs), proposes priority ranking with reasoning (e.g., "PROJ-567 is due Friday and blocking 2 team members — high priority").
+"Prep me for the 2 PM sprint planning meeting"
+Expected: Finds meeting in calendar, gets sprint Jira tickets, checks GitHub status for in-sprint work, pulls Slack discussions about sprint goals, pulls emails from PM about priorities, generates briefing doc with: sprint velocity, ticket status, blockers, questions to raise.
+"What needs my attention today?"
+Expected: Triages across all 5 sources in parallel, identifies:
+Urgent: Blocked PRs needing rebase, overdue tickets, meeting in 30 min requiring prep
+Important: Unread emails from leadership, Slack DMs requiring response
+Nice-to-have: Code reviews, non-urgent tickets
+Presents ranked list with reasoning.
+
+
+Mock Data Requirements (Production-Grade)
+To make this test realistic, the mock data must include:
+Jira
+20-30 tickets across 3 projects (PROJ, INFRA, BUG)
+Realistic ticket types: Story, Bug, Task, Epic
+Status workflow: Backlog → To Do → In Progress → In Review → Done
+Sprint assignment, story points, assignees (5-6 mock developers)
+Comments, status change history, linked tickets
+Due dates, priority levels
+GitHub
+10-15 PRs across 2-3 repos
+PR states: Open (awaiting review, changes requested, approved), Merged, Closed
+Review comments, CI status (passing/failing)
+Linked Jira tickets (via commit messages like "PROJ-123: Add feature")
+Commit history (last 7 days)
+PR authors and reviewers (same 5-6 developers)
+Slack
+3-4 channels (#standup, #engineering, #bugs, #random)
+50-100 messages over last 3 days
+Realistic conversation patterns: questions, updates, blockers, @mentions
+Threaded discussions (e.g., discussing a PR in #engineering)
+DMs between developers
+Gmail
+15-20 email threads
+Senders: PM, Tech Lead, QA, External stakeholder
+Subjects: Sprint planning, Bug reports, Code review requests, Meeting invites
+Labeled: work, urgent, team, external
+Some unread, some flagged
+Calendar
+10-15 events over current week
+Meeting types: Standup (daily), Sprint Planning, 1-on-1s, Code Review sessions, All-hands
+Some with conflicts, some with prep needed
+Recurring vs. one-time events
+Meeting participants (overlap with Slack/Email users)
+Cross-source linking examples:
+Jira ticket PROJ-123 → GitHub PR #456 (via commit message) → Slack thread discussing the PR → Email from PM asking about status
+Calendar event "Sprint Planning" → Jira sprint tickets → GitHub PRs in sprint → Slack #standup messages about sprint goals
+Open Questions
+Do we want to test context window limits by having a developer with 100+ tickets and 50+ PRs?
+
