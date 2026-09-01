@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "developer-tools": {
+      "url": "http://localhost:8081/sse"
+    }
+  }
+}

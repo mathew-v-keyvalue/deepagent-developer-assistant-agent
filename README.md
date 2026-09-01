@@ -108,23 +108,23 @@ part of this repo.
 
 Write tools return a `pending_action_id`. The agent must wait for human approval (`interrupt_on`), then call `confirm_action`.
 
-## Mock data (reference “today” = 2026-07-09)
+## Mock data (reference “today” = 2025-06-18, frozen — company Nimbus Labs)
 
-- **Primary user:** Alex Chen (`alex.chen` / `U001`), Asia/Kolkata
-- **Jira:** 25 tickets across PROJ / INFRA / BUG
-- **GitHub:** 12 PRs across 3 repos (cross-linked via `PROJ-####` commit messages)
-- **Slack:** 4 channels + DMs, ~80 messages (Jul 7–9)
-- **Gmail:** 18 threads (PM, TL, QA, external partner)
-- **Calendar:** standups, sprint planning (2 PM), 1:1s, conflicts
+- **Primary user:** Aisha Khan (`aisha.khan`), Backend Engineer, Asia/Kolkata
+- **Jira:** 30 tickets across PROJ / INFRA / BUG
+- **GitHub:** 30 PRs + 34 commits across 3 repos (`pulse-web`, `pulse-api`, `pulse-infra`; cross-linked via `PROJ-###:` / `INFRA-###:` / `BUG-###:` commit messages)
+- **Slack:** 4 channels + DMs, 30 conversations (~67 messages)
+- **Gmail:** 30 threads (PM, Tech Lead, QA, external client stakeholder)
+- **Calendar:** 30 events — standups, Sprint 15 planning (today, 2 PM), 1:1s, code review sessions
 
-Golden cross-link example: `PROJ-1234` → `PR-456` → Slack `#engineering` thread → partner email `GT007`.
+Golden cross-link example: `PROJ-101` (SSO login) → PR `pulse-api#136` → Slack `#engineering` thread → Gmail `thread_1001` ("SSO login - client demo timing").
 
 ## Three task modes
 
 | Mode | Example | Scoring |
 |---|---|---|
 | 1 Fixed steps | “Generate my standup update…” | Ordered tool checklist + approval gate |
-| 2 Known scope | “What's the status of PROJ-1234?” | Grounded vs golden phrases |
+| 2 Known scope | “What's the status of PROJ-101?” | Grounded vs golden phrases |
 | 3 Open-ended | “I'm overcommitted this week…” | Multi-source + qualitative rubric |
 
 ## Common harness interface (§13)
@@ -150,7 +150,8 @@ Every toolkit implementation should expose the same shape: conversation in → r
 | `MCP_URL` | `http://localhost:8081/sse` | Shared MCP server SSE endpoint (no auth) |
 | `MCP_CLIENT_TRANSPORT` | `sse` | MCP client transport (`sse` or `streamable_http`) |
 | `AUTO_APPROVE_WRITES` | `false` | CLI/eval HITL shortcut |
-| `REFERENCE_DATE` | `2026-07-09` | Temporal anchor for prompts |
+| `REFERENCE_DATE` | `2025-06-18` | Temporal anchor for prompts (must match the shared dataset's frozen `today`) |
+| `PRIMARY_USER_ID` | `aisha.khan` | Default user context injected by the eval harness |
 
 ## Guardrails
 
